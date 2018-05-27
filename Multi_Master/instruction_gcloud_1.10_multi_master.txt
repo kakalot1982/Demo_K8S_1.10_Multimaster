@@ -4,9 +4,14 @@ Note: This instruction will start lab for kubernetes for real workshop:
 Lab Description:
 VMName:							Machine name		Roles:						IP Address:
 kubernetes-ms1					kubernetes-ms1		Master						192.168.99.200
-kubernetes-wrk1					kubernetes-wrk1		NodePort					192.168.99.201
-kubernetes-wrk2					kubernetes-wrk2		NodePort					192.168.99.202
-kubernetes-wrk3					kubernetes-wrk3		NodePort					192.168.99.203
+kubernetes-ms2					kubernetes-ms2		Master						192.168.99.201
+kubernetes-ms3					kubernetes-ms3		Master						192.168.99.202
+#kubernetes-etcd1				kubernetes-etcd1	etcd						192.168.99.203
+#kubernetes-etcd2				kubernetes-etcd2	etcd						192.168.99.204
+#kubernetes-etcd3				kubernetes-etcd3	etcd						192.168.99.205
+kubernetes-wrk1					kubernetes-wrk1		NodePort					192.168.99.206
+kubernetes-wrk2					kubernetes-wrk2		NodePort					192.168.99.207
+kubernetes-wrk3					kubernetes-wrk3		NodePort					192.168.99.208
 ===================================================
 
 0. Check region and zone current on GCloud (Note: your zone prefer, project code):
@@ -32,9 +37,11 @@ Sample Output
 ------------------------------------
 NAME           ZONE          MACHINE_TYPE   PREEMPTIBLE  INTERNAL_IP     EXTERNAL_IP     STATUS
 kubernetes-ms1   asia-east1-a  n1-standard-1               192.168.99.200  35.234.22.153   RUNNING
-kubernetes-wrk1  asia-east1-a  n1-standard-1               192.168.99.201  35.194.180.146  RUNNING
-kubernetes-wrk2  asia-east1-a  n1-standard-1               192.168.99.202  35.189.180.87   RUNNING
-kubernetes-wrk3  asia-east1-a  n1-standard-1               192.168.99.203  104.199.187.60  RUNNING
+kubernetes-ms2   asia-east1-a  n1-standard-1               192.168.99.201  35.189.187.47   RUNNING
+kubernetes-ms3   asia-east1-a  n1-standard-1               192.168.99.202  35.234.4.198    RUNNING
+kubernetes-wrk1  asia-east1-a  n1-standard-1               192.168.99.206  35.194.180.146  RUNNING
+kubernetes-wrk2  asia-east1-a  n1-standard-1               192.168.99.207  35.189.180.87   RUNNING
+kubernetes-wrk3  asia-east1-a  n1-standard-1               192.168.99.208  104.199.187.60  RUNNING
 ------------------------------------
 
 5. Grant permission for docker operate by command:
@@ -78,17 +85,13 @@ exit
 
 6. Open ssh (Windows by puttty) with 3 session:
 gcloud compute ssh "kubernetes-ms1"
+gcloud compute ssh "kubernetes-ms2"
+gcloud compute ssh "kubernetes-ms3"
 gcloud compute ssh "kubernetes-wrk1"
 gcloud compute ssh "kubernetes-wrk2"
 gcloud compute ssh "kubernetes-wrk3"
 
-############################################## Check cgroup driver used by kubectl master node ##############################################################
-docker info | grep -i cgroup
-cat /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
-
-#############################################################################################################################################################
-
-7. For each node initial installation by command: (Skip for Auto)
+7. For each node initial installation by command: (Skip from Auto)
 sudo iptables-save > /tmp/iptables.conf
 sudo apt-get update
 chmod +x ./initialsetup.sh
@@ -120,7 +123,7 @@ gcloud compute ssh "kubernetes-2"
 10. (local) SCP Certificate from Google Cloud to Local:
 	gcloud compute scp kubernetes-ms1:/home/<home directory>/.kube/config adminconfig.conf
 
-11. (kubernetes-ms) Create calico net plugin for network for cluster by command:
+11. (kubernetes-ms1) Create calico net plugin for network for cluster by command:
 	kubectl apply -f https://docs.projectcalico.org/v3.1/getting-started/kubernetes/installation/hosted/rbac-kdd.yaml
 	kubectl apply -f https://docs.projectcalico.org/v3.1/getting-started/kubernetes/installation/hosted/kubernetes-datastore/calico-networking/1.7/calico.yaml
 
@@ -172,7 +175,7 @@ kubectl --kubeconfig ./adminconfig.conf proxy --accept-hosts '.*'
 17. (local) Open browser by command
 http://localhost:8001/api/v1/namespaces/kube-system/services/https:kubernetes-dashboard:/proxy/
 
-18. (kubernetes-wrk1),(kubernetes-wrk2),(kubernetes-wrk2) ssh and join to cluster by command:
+18. (kubernetes-wrk1),(kubernetes-wrk2) ssh and join to cluster by command:
 	sudo su -
 	swapoff -a
 	kubeadm join 192.168.99.200:6443 --token 8c2350.f55343444a6ffc46 --discovery-token-ca-cert-hash <sha256 key>
@@ -198,8 +201,17 @@ This node has joined the cluster:
 Run 'kubectl get nodes' on the master to see this node join the cluster.
 	-------------------------------------------------
 
-19. (kubernetes-ms) Check Node in Cluster by command (This take 5 - 10 min):
+19. (kubernetes-ms1) Check Node in Cluster by command (This take 5 - 10 min):
 kubectl get nodes
+
+-------------------------------------------------
+Sample Output
+-------------------------------------------------
+NAME            STATUS    ROLES     AGE       VERSION
+kubernetes-1    Ready     <none>    4m        v1.9.2
+kubernetes-2    Ready     <none>    23s       v1.9.2
+kubernetes-ms   Ready     master    36m       v1.9.2
+-------------------------------------------------
 
 20. (kubernetes-ms)Check Pods from all cluster system running by command:
 kubectl get pods --all-namespaces
@@ -221,20 +233,27 @@ kube-system   kube-proxy-vzswv                       1/1       Running   0      
 kube-system   kube-scheduler-kubeserve-ms            1/1       Running   0          11m
 -------------------------------------------------
 
-21. (kubernetes-ms) Test deployment basic nginx pods by command
+21. (kubernetes-ms1) Test deployment basic nginx pods by command
 kubectl run webtest --image=labdocker/nginx:latest --port=80
 kubectl get pods -o wide
 kubectl expose deployment webtest --target-port=80 --type=NodePort
 kubectl get svc -o wide
 
-22. (kubernetes-ms) Test get web inside farm by curl:
+22. (kubernetes-ms1) Test get web inside farm by curl:
 curl http://192.168.99.200:<port>
 curl http://192.168.99.201:<port>
 curl http://192.168.99.202:<port>
-curl http://192.168.99.203:<port>
 
 23. (Client Machine) Test get web outside farm by curl or browser:
 gcloud compute instances list
+------------------------------------
+Sample Output
+------------------------------------
+NAME           ZONE          MACHINE_TYPE   PREEMPTIBLE  INTERNAL_IP     EXTERNAL_IP      STATUS
+kubernetes-1   asia-east1-a  n1-standard-1               192.168.99.201  35.194.199.107  RUNNING
+kubernetes-2   asia-east1-a  n1-standard-1               192.168.99.202  35.201.184.247  RUNNING
+kubernetes-ms  asia-east1-a  n1-standard-1               192.168.99.200  35.201.165.23   RUNNING
+------------------------------------
 
 curl http://<External IP of MS>:<port>
 curl http://<External IP of MS>:<port>
