@@ -25,7 +25,7 @@ gcloud config set compute/zone asia-east1-a
 ./initialnetwork.sh
 
 3. Create Machine for KubernetesLab:
-./initialcluster.sh
+./initialcluster_auto.sh
 
 4. Check state of internet/external ip address (Note for all ip related):
 gcloud compute instances list
@@ -33,36 +33,62 @@ gcloud compute instances list
 Sample Output
 ------------------------------------
 NAME           ZONE          MACHINE_TYPE   PREEMPTIBLE  INTERNAL_IP     EXTERNAL_IP     STATUS
-kubernetes-1   asia-east1-a  n1-standard-1               192.168.99.201  35.185.173.156  RUNNING
-kubernetes-2   asia-east1-a  n1-standard-1               192.168.99.202  35.194.197.171  RUNNING
-kubernetes-ms  asia-east1-a  n1-standard-1               192.168.99.200  35.194.129.10   RUNNING
+kubernetes-ms1   asia-east1-a  n1-standard-1               192.168.99.200  35.234.22.153   RUNNING
+kubernetes-ms2   asia-east1-a  n1-standard-1               192.168.99.201  35.189.187.47   RUNNING
+kubernetes-ms3   asia-east1-a  n1-standard-1               192.168.99.202  35.234.4.198    RUNNING
+kubernetes-wrk1  asia-east1-a  n1-standard-1               192.168.99.205  35.194.180.146  RUNNING
+kubernetes-wrk2  asia-east1-a  n1-standard-1               192.168.99.206  35.189.180.87   RUNNING
+kubernetes-wrk3  asia-east1-a  n1-standard-1               192.168.99.207  104.199.187.60  RUNNING
 ------------------------------------
 
-5. Copy script from local to googlecloud:
+5. Grant permission for docker operate by command:
 
-gcloud compute ssh "kubernetes-ms"
-wget https://raw.githubusercontent.com/praparn/kubernetes_20170128/master/WorkShop_2.5_Kubernetes_RealWorld/initialsetup.sh
-exit 
-
-gcloud compute ssh "kubernetes-1"
-wget https://raw.githubusercontent.com/praparn/kubernetes_20170128/master/WorkShop_2.5_Kubernetes_RealWorld/initialsetup.sh
-exit 
-
-gcloud compute ssh "kubernetes-2"
-wget https://raw.githubusercontent.com/praparn/kubernetes_20170128/master/WorkShop_2.5_Kubernetes_RealWorld/initialsetup.sh
+gcloud compute ssh "kubernetes-ms1"
+sudo groupadd docker
+sudo usermod -aG docker $USER
+sudo systemctl enable docker
 exit
 
-Optional:
-gcloud compute scp ./initialsetup.sh kubernetes-ms:/home/praparn/initialsetup.sh
-gcloud compute scp ./initialsetup.sh kubernetes-1:/home/praparn/initialsetup.sh
-gcloud compute scp ./initialsetup.sh kubernetes-2:/home/praparn/initialsetup.sh
+gcloud compute ssh "kubernetes-ms2"
+sudo groupadd docker
+sudo usermod -aG docker $USER
+sudo systemctl enable docker
+exit
+
+gcloud compute ssh "kubernetes-ms3"
+sudo groupadd docker
+sudo usermod -aG docker $USER
+sudo systemctl enable docker
+exit
+
+gcloud compute ssh "kubernetes-wrk1"
+sudo groupadd docker
+sudo usermod -aG docker $USER
+sudo systemctl enable docker
+exit
+
+gcloud compute ssh "kubernetes-wrk2"
+sudo groupadd docker
+sudo usermod -aG docker $USER
+sudo systemctl enable docker
+exit
+
+gcloud compute ssh "kubernetes-wrk3"
+sudo groupadd docker
+sudo usermod -aG docker $USER
+sudo systemctl enable docker
+exit
+
 
 6. Open ssh (Windows by puttty) with 3 session:
-gcloud compute ssh "kubernetes-ms"
-gcloud compute ssh "kubernetes-1"
-gcloud compute ssh "kubernetes-2"
+gcloud compute ssh "kubernetes-ms1"
+gcloud compute ssh "kubernetes-ms2"
+gcloud compute ssh "kubernetes-ms3"
+gcloud compute ssh "kubernetes-wrk1"
+gcloud compute ssh "kubernetes-wrk2"
+gcloud compute ssh "kubernetes-wrk3"
 
-7. For each node initial installation by command:
+7. For each node initial installation by command: (Skip from Auto)
 sudo iptables-save > /tmp/iptables.conf
 sudo apt-get update
 chmod +x ./initialsetup.sh
@@ -78,93 +104,39 @@ gcloud compute ssh "kubernetes-2"
 	
 8. (kubernetes-ms) initial cluster by command:
 	sudo su -
-	kubeadm init --kubernetes-version=v1.9.2 --pod-network-cidr=10.244.0.0/16 --token 8c2350.f55343444a6ffc46 --apiserver-cert-extra-sans <public ip>
+	swapoff -a (Also need check and mark on /etc/fstab)
+	kubeadm init --pod-network-cidr=192.168.0.0/16 --token 8c2350.f55343444a6ffc46 --apiserver-cert-extra-sans <public ip>
 	exit
 
 	*Remark: output of this command will generate token that need to keep:
-	-------------------------------------------------
-	Sample Output:
-	-------------------------------------------------
-	[kubeadm] WARNING: kubeadm is in beta, please do not use it for production clusters.
-	[init] Using Kubernetes version: v1.9.2
-	[init] Using Authorization modes: [Node RBAC]
-	[preflight] Running pre-flight checks
-	[preflight] WARNING: docker version is greater than the most recently validated version. Docker version: 17.06.0-ce. Max validated version: 1.12
-	[certificates] Generated CA certificate and key.
-	[certificates] Generated API server certificate and key.
-	[certificates] API Server serving cert is signed for DNS names [kubeserve-ms kubernetes kubernetes.default kubernetes.default.svc kubernetes.default.svc.cluster.local] and IPs [10.96.0.1 192.168.99.200]
-	[certificates] Generated API server kubelet client certificate and key.
-	[certificates] Generated service account token signing key and public key.
-	[certificates] Generated front-proxy CA certificate and key.
-	[certificates] Generated front-proxy client certificate and key.
-	[certificates] Valid certificates and keys now exist in "/etc/kubernetes/pki"
-	[kubeconfig] Wrote KubeConfig file to disk: "/etc/kubernetes/admin.conf"
-	[kubeconfig] Wrote KubeConfig file to disk: "/etc/kubernetes/kubelet.conf"
-	[kubeconfig] Wrote KubeConfig file to disk: "/etc/kubernetes/controller-manager.conf"
-	[kubeconfig] Wrote KubeConfig file to disk: "/etc/kubernetes/scheduler.conf"
-	[apiclient] Created API client, waiting for the control plane to become ready
-	[apiclient] All control plane components are healthy after 64.501528 seconds
-	[token] Using token: b2aa8c.e6d1e0a724c3f50e
-	[apiconfig] Created RBAC rules
-	[addons] Applied essential addon: kube-proxy
-	[addons] Applied essential addon: kube-dns
-
-	Your Kubernetes master has initialized successfully!
-
-	To start using your cluster, you need to run (as a regular user):
-
-	  mkdir -p $HOME/.kube
-	  sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-	  sudo chown $(id -u):$(id -g) $HOME/.kube/config
-
-	You should now deploy a pod network to the cluster.
-	Run "kubectl apply -f [podnetwork].yaml" with one of the options listed at:
-	  http://kubernetes.io/docs/admin/addons/
-
-	You can now join any number of machines by running the following on each node
-	as root:
-
-	 kubeadm join --token 8c2350.f55343444a6ffc46 192.168.99.200:6443 --discovery-token-ca-cert-hash <sha256 key>
-
-	 Ex: kubeadm join --token 8c2350.f55343444a6ffc46 192.168.99.200:6443 --discovery-token-ca-cert-hashs sha256:7c1f1a2c0f578f06b5e449631d38eaeacd47f346cce2e965799d164719dbbf89
 	
-	Note: for show token again plase kindly use command:
-
-		kubeadm token list
-		
-		Retoken:
-		kubeadm token generate	==> Keep token <If need token> 
-		kubeadm token create <generated-token> --print-join-command --ttl=0
-
-	-------------------------------------------------
 9. (kubernetes-ms) Setup run cluster system by command (Regular User):
 		  mkdir -p $HOME/.kube
 		  sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
 		  sudo chown $(id -u):$(id -g) $HOME/.kube/config
-		  kubectl taint nodes --all node-role.kubernetes.io/master-
 
 10. (local) SCP Certificate from Google Cloud to Local:
-	gcloud compute scp kubernetes-ms:/home/<home directory>/.kube/config adminconfig.conf
+	gcloud compute scp kubernetes-ms1:/home/<home directory>/.kube/config adminconfig.conf
 
-11. (kubernetes-ms) Create flannel net plugin for network for cluster by command:
-	kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
-	kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/v0.8.0/Documentation/kube-flannel-rbac.yml
+11. (kubernetes-ms1) Create calico net plugin for network for cluster by command:
+	kubectl apply -f https://docs.projectcalico.org/v3.1/getting-started/kubernetes/installation/hosted/rbac-kdd.yaml
+	kubectl apply -f https://docs.projectcalico.org/v3.1/getting-started/kubernetes/installation/hosted/kubernetes-datastore/calico-networking/1.7/calico.yaml
 
-12. (kubernetes-ms) Check master readyness and dns by command (Take 5 - 10 min):
+12. (kubernetes-ms1) Check master readyness and dns by command (Take 5 - 10 min):
 	kubectl get pods --all-namespaces
 	kubectl describe pods <kube-dns name> --namespace kube-system
 
 	-------------------------------------------------
 	Sample Output
 	-------------------------------------------------
-	NAMESPACE     NAME                                   READY     STATUS    RESTARTS   AGE
-kube-system   etcd-kubeserve-ms                      1/1       Running   0          1m
-kube-system   kube-apiserver-kubeserve-ms            1/1       Running   0          2m
-kube-system   kube-controller-manager-kubeserve-ms   1/1       Running   0          3m
-kube-system   kube-dns-2425271678-xhhk6              3/3       Running   0          2m
-kube-system   kube-flannel-ds-n9ws7                  2/2       Running   0          2m
-kube-system   kube-proxy-vzswv                       1/1       Running   0          2m
-kube-system   kube-scheduler-kubeserve-ms            1/1       Running   0          2m
+NAMESPACE     NAME                                     READY     STATUS    RESTARTS   AGE
+kube-system   calico-node-qlt5m                        2/2       Running   0          48s
+kube-system   etcd-kubernetes-ms1                      1/1       Running   0          16m
+kube-system   kube-apiserver-kubernetes-ms1            1/1       Running   0          16m
+kube-system   kube-controller-manager-kubernetes-ms1   1/1       Running   0          16m
+kube-system   kube-dns-86f4d74b45-fnk6t                0/3       Pending   0          17m
+kube-system   kube-proxy-dcb8d                         1/1       Running   0          17m
+kube-system   kube-scheduler-kubernetes-ms1            1/1       Running   0          16m
 	-------------------------------------------------
 13. (local) Edit file adminconfig.conf for change ip address from private to public ip:
 vi adminconfig.conf
@@ -178,8 +150,6 @@ Optional:
 	1. copy configuration on adminconfig.conf ==> ~/.kube/config (3 Part: cluster, context, users)
 	2. kubectl config use-context <context name>
 	
-
-
 
 15. (kubenetes-ms) Install dashboard by command:
 kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/master/src/deploy/recommended/kubernetes-dashboard.yaml
