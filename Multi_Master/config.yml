@@ -5,15 +5,18 @@ etcd:
   - "http://192.168.99.200:2379"
   - "http://192.168.99.201:2379"
   - "http://192.168.99.202:2379"
+networking:
+  serviceSubnet: 10.96.0.0/12
+  podSubnet: 10.244.0.0/16
 apiServerExtraArgs:
   apiserver-count:3
 apiServerCertSANs:
 - "192.168.99.200"
 - "192.168.99.201"
 - "192.168.99.202"
-- "x.x.x.x"
-- "x.x.x.x"
-- "x.x.x.x"
+- "35.234.25.153"
+- "35.194.180.146"
+- "35.234.22.153"
 - "127.0.0.1"
 token: "8c2350.f55343444a6ffc46"
 tokenTTL: "0"

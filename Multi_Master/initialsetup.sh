@@ -1,8 +1,3 @@
-#Clarify LC
-sudo su -
-echo "LC_ALL=en_US.UTF-8" >> /etc/default/locate
-echo "LANG=en_US.UTF-8" >> /etc/default/locate
-exit
 #Install Base docker-engine
 sudo apt-get update
 sudo apt-get remove docker docker-engine
@@ -37,4 +32,3 @@ sudo bash -c 'echo "deb http://apt.kubernetes.io/ kubernetes-xenial main" > /etc
 sudo apt-get update
 #sudo apt-get install -y kubelet=1.9.2-00 kubeadm=1.9.2-00
 sudo apt-get install -y kubelet kubeadm
-sudo shutdown -r now

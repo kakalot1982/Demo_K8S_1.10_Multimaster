@@ -1,0 +1,187 @@
+*** This instruction is compatible only centos 7 + ***
+*** All nodes must be able to acess internet during installation ***
+
+Prerequisite Steps
+
+1) Require provisioned infrastrature with these specifications
+   ( Refer : https://kubernetes.io/docs/setup/independent/install-kubeadm )
+
+   1.1) Master Node Specifications
+        - Instance Type : t2.medium
+        - Nums of instance : 1
+        - Root Disk     : 50 GB
+        - Security Group
+          - Inbound
+	Protocol		Direction	Port Range		Purpose
+	TCP			Inbound		6443*			Kubernetes API server
+	TCP			Inbound		8001			Kubernetes proxy service
+	TCP			Inbound		2379-2380		etcd server client API
+	TCP			Inbound		10250			Kubelet API
+	TCP			Inbound		10251			kube-scheduler
+	TCP			Inbound		10252			kube-controller-manager
+	TCP			Inbound		10255			Read-only Kubelet API
+
+   1.2) Ingress Node Specifications
+        - Instance Type : t2.medium
+        - Nums of instance : 1
+        - Root Disk     : 50 GB
+        - Security Group
+          - Inbound
+            Protocol		Direction	Port Range		Purpose
+            TCP			Inbound		80			Ingress income request traffic ( HTTP )
+            TCP			Inbound		443			Ingress income request traffic ( HTTPS )
+            TCP			Inbound		10250			Kubelet API
+            TCP			Inbound		10255			Read-only Kubelet API
+            TCP			Inbound		30000-32767		NodePort Services**
+
+   1.3) worker Node Specifications
+        - Instance Type : t2.medium
+        - Nums of instance : 1
+        - Root Disk     : 50 GB
+        - Security Group
+          - Inbound
+            Protocol	Direction	Port Range		Purpose
+            TCP			Inbound		10250			Kubelet API
+            TCP			Inbound		10255			Read-only Kubelet API
+            TCP			Inbound		30000-32767		NodePort Services**
+
+2) Install & Configure Kubernetes *** Master ***
+   2.1) Turn off SELinux and Firewall
+        # setenforce 0
+        # sed -i "s/SELINUX=permissive/SELINUX=enforcing/g" /etc/sysconfig/selinux
+        # service firewalld stop
+        # chkconfig firewalld off
+   2.2) Install docker engine
+        # yum install -y docker
+        # systemctl enable docker && systemctl start docker
+   2.3) Install kubernetes packages
+        # cat <<EOF > /etc/yum.repos.d/kubernetes.repo
+[kubernetes]
+name=Kubernetes
+baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+EOF
+        # yum update -y
+        # yum install -y kubelet kubeadm kubectl wget curl 
+        # sudo systemctl enable kubelet && sudo systemctl start kubelet
+    2.4) Configure network
+        # cat <<EOF >  /etc/sysctl.d/k8s.conf
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-iptables = 1
+EOF
+        # sysctl --system
+
+		
+		
+    2.5) Initial kubernetes cluster on Master
+         # kubeadm init --pod-network-cidr=192.168.0.0/16
+         
+         ** Wait until turn to prompt, it will be take a few minutes **
+         After it has been turned to prompt, please take note token to join worker node to cluster
+         kubeadm join --token xxxxxxxxx x.x.x.x:6443 --discovery-token-ca-cert-hash sha256:xxxxxxxxxxxxx
+		 
+		 
+		 ###################################################################################################
+		 kubeadm join --token b0b5c9.6d104751ba819cd5 172.22.194.20:6443 --discovery-token-ca-cert-hash sha256:b268bdc0bb87f26e6883467c11f90a320e1f4a392a5d6f4238cfebc2bd7d8fc8
+
+
+    2.6) Install Network Plugin
+         # mkdir -p $HOME/.kube
+         # cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+         # chown $(id -u):$(id -g) $HOME/.kube/config
+		 
+         # export KUBECONFIG=/etc/kubernetes/admin.conf
+		 
+		 ##################################
+		 sudo cp /etc/kubernetes/admin.conf $HOME/
+		 sudo chown $(id -u):$(id -g) $HOME/admin.conf
+                 export KUBECONFIG=$HOME/admin.conf
+		 
+		 
+		 
+         # kubectl apply -f https://docs.projectcalico.org/v3.1/getting-started/kubernetes/installation/hosted/calico.yaml
+	 # kubectl create -f https://raw.githubusercontent.com/kubernetes/dashboard/master/src/deploy/recommended/kubernetes-dashboard.yaml
+		 
+		 
+		 
+    2.7) Wait until all of pod shown running
+         # kubectl get pod --all-namespaces
+         *** Notice on STATUS column ***
+
+3) Install & Configure Kubernetes *** Ingress Node ***
+   3.1) Turn off SELinux and Firewall
+        # setenforce 0
+        # sed -i "s/SELINUX=permissive/SELINUX=enforcing/g" /etc/sysconfig/selinux
+        # service firewalld stop
+        # chkconfig firewalld off
+		
+		
+   3.2) Install docker engine
+        # yum install -y docker
+        # systemctl enable docker && systemctl start docker
+		
+   3.3) Install kubernetes packages
+        # cat <<EOF > /etc/yum.repos.d/kubernetes.repo
+		
+		
+[kubernetes]
+name=Kubernetes
+baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+EOF
+        # yum update -y
+        # yum install -y kubelet kubeadm kubectl
+        # systemctl enable kubelet && systemctl start kubelet
+    3.4) Configure network
+        # cat <<EOF >  /etc/sysctl.d/k8s.conf
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-iptables = 1
+EOF
+        # sysctl --system
+
+    3.5 Join Ingress Node to Cluster
+        Run command join cluster which is shown at step 2.5
+        # kubeadm join --token xxxxxxxxx x.x.x.x:6443 --discovery-token-ca-cert-hash sha256:xxxxxxxxxxxxx
+		
+		run check on master  "kubctl get nodes"
+
+4) Install & Configure Kubernetes*** Worker Node ***
+   4.1) Turn off SELinux and Firewall
+        # setenforce 0
+        # sed -i "s/SELINUX=permissive/SELINUX=enforcing/g" /etc/sysconfig/selinux
+        # service firewalld stop
+        # chkconfig firewalld off
+   4.2) Install docker engine
+        # yum install -y docker
+        # systemctl enable docker && systemctl start docker
+   4.3) Install kubernetes packages
+        # cat <<EOF > /etc/yum.repos.d/kubernetes.repo
+[kubernetes]
+name=Kubernetes
+baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+EOF
+        # yum update -y
+        # yum install -y kubelet kubeadm kubectl
+        # systemctl enable kubelet && systemctl start kubelet
+    4.4) Configure network
+        # cat <<EOF >  /etc/sysctl.d/k8s.conf
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-iptables = 1
+EOF
+        # sysctl --system
+
+    4.5 Join Ingress Node to Cluster
+        Run command join cluster which is shown at step 2.5
+        # kubeadm join --token xxxxxxxxx x.x.x.x:6443 --discovery-token-ca-cert-hash sha256:xxxxxxxxxxxxx
+    4.6 Repeat steps 4.1 - 4.5 for at rest worker nodes
+

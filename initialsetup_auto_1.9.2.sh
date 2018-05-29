@@ -32,6 +32,6 @@ sudo touch /etc/apt/sources.list.d/kubernetes.list
 #sudo bash -c 'echo "deb http://apt.kubernetes.io/ kubernetes-xenial-1.7 main" > /etc/apt/sources.list.d/kubernetes.list'
 sudo bash -c 'echo "deb http://apt.kubernetes.io/ kubernetes-xenial main" > /etc/apt/sources.list.d/kubernetes.list'
 sudo apt-get update
-#sudo apt-get install -y kubelet=1.9.2-00 kubeadm=1.9.2-00
-sudo apt-get install -y kubelet kubeadm
+sudo apt-get install -y kubelet=1.9.2-00 kubeadm=1.9.2-00
+#sudo apt-get install -y kubelet kubeadm
 sudo iptables-restore < /tmp/iptables.conf
